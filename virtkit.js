@@ -76,8 +76,8 @@ VirtKit.initialize = function (callback) {
 VirtKit.generate_sheets = function (image) {
   this.g.drawImage(image, 0, 0);
 
-  var width  = SHEET_WIDTH  * CHAR_WIDTH;
-  var height = SHEET_HEIGHT * CHAR_HEIGHT;
+  var width  = SHEET_WIDTH  * CHAR_WIDTH  + (2 * SHEET_MARGIN);
+  var height = SHEET_HEIGHT * CHAR_HEIGHT + (2 * SHEET_MARGIN);
 
   var pixels = this.g.getImageData(0, 0, width, height);
 
