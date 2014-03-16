@@ -212,6 +212,14 @@ VirtKit.put_char = function (c) {
   case 0xA: // newline
     this.newline();
     break;
+  case 0xD: // carriage return
+    var old_col = this.cursor_col;
+
+    this.cursor_col = 0;
+
+    this.paintAt(old_col,         this.cursor_row);
+    this.paintAt(this.cursor_col, this.cursor_row);
+    break;
   default:
     this.buffer[this.cursor_row * this.cols + this.cursor_col] =
       (this.cursor_color << 8) | (c & 0xff);
@@ -255,13 +263,14 @@ window.addEventListener("load", function () {
 
     VirtKit.set_color(COLOR_WHITE, COLOR_RED);
 
-    VirtKit.write_string("\nHello, world!");
+    VirtKit.write_string("\nHello, world!\n\n");
 
-/*
     setInterval(function() {
-      VirtKit.write_string("a");
-    }, 200);
-*/
+      VirtKit.write_string("\rThe current time is: ");
+      VirtKit.set_color(COLOR_LIGHT_BROWN, COLOR_RED);
+      VirtKit.write_string((new Date()).toString());
+      VirtKit.set_color(COLOR_WHITE, COLOR_RED);
+    }, 1000);
   });
 });
 
