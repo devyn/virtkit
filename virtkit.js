@@ -45,18 +45,20 @@ var COLOR_LIGHT_MAGENTA = 13;
 var COLOR_LIGHT_BROWN = 14;
 var COLOR_WHITE = 15;
 
+var CURSOR_BLINK_RATE = 270; // seems similar to QEMU but I didn't time it
+
 VirtKit.initialize = function (callback) {
   this.g = document.getElementById("term").getContext("2d");
 
-  this.cols  = 80;
+  this.cols = 80;
   this.rows = 25;
 
   this.buffer = new Uint16Array(this.cols * this.rows);
-  this.clear();
 
   this.cursor_col   = 0;
   this.cursor_row   = 0;
   this.cursor_color = 0x0f;
+  this.cursor_on    = false;
 
   this.font_sheets = new Array(256);
 
@@ -65,7 +67,11 @@ VirtKit.initialize = function (callback) {
 
   font_sheet.addEventListener("load", (function () {
     this.generate_sheets(font_sheet);
-    this.paint();
+    this.clear();
+
+    this.cursor_interval = setInterval((function () {
+      this.toggle_cursor();
+    }).bind(this), CURSOR_BLINK_RATE);
 
     if (typeof callback === 'function') {
       callback();
@@ -112,24 +118,44 @@ VirtKit.paint = function () {
 
   for (var row = 0; row < this.rows; row++) {
     for (var col = 0; col < this.cols; col++) {
-      var ch = this.buffer[row * this.cols + col];
-
-      var attribute = (ch & 0xff00) >> 8;
-
-      ch &= 0xff;
-
-      var sx = ( ch % SHEET_WIDTH     ) * CHAR_WIDTH  + SHEET_MARGIN;
-      var sy = ((ch / SHEET_WIDTH) | 0) * CHAR_HEIGHT + SHEET_MARGIN;
-      var dx = col * CHAR_WIDTH  - sx;
-      var dy = row * CHAR_HEIGHT - sy;
-
-      this.g.putImageData(
-        this.font_sheets[attribute],
-        dx, dy,
-        sx, sy, CHAR_WIDTH, CHAR_HEIGHT
-      );
+      this.paintAt(col, row);
     }
   }
+};
+
+VirtKit.paintAt = function (col, row) {
+  var ch = this.buffer[row * this.cols + col];
+
+  var attribute = (ch & 0xff00) >> 8;
+
+  ch &= 0xff;
+
+  var sx = ( ch % SHEET_WIDTH     ) * CHAR_WIDTH  + SHEET_MARGIN;
+  var sy = ((ch / SHEET_WIDTH) | 0) * CHAR_HEIGHT + SHEET_MARGIN;
+  var dx = col * CHAR_WIDTH  - sx;
+  var dy = row * CHAR_HEIGHT - sy;
+
+  this.g.putImageData(
+    this.font_sheets[attribute],
+    dx, dy,
+    sx, sy, CHAR_WIDTH, CHAR_HEIGHT
+  );
+
+  if (row === this.cursor_row && col === this.cursor_col && this.cursor_on) {
+    this.g.fillStyle = "rgb(" +
+      VGA_COLORS[this.cursor_color & 0x0f].join(",") + ")";
+
+    this.g.fillRect(
+      this.cursor_col * CHAR_WIDTH,
+      this.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 2,
+      CHAR_WIDTH, 2
+    );
+  }
+};
+
+VirtKit.toggle_cursor = function () {
+  this.cursor_on = !this.cursor_on;
+  this.paintAt(this.cursor_col, this.cursor_row);
 };
 
 VirtKit.clear = function () {
@@ -139,6 +165,8 @@ VirtKit.clear = function () {
 
   this.cursor_col = 0;
   this.cursor_row = 0;
+
+  this.paint();
 };
 
 VirtKit.scroll = function () {
@@ -154,6 +182,8 @@ VirtKit.scroll = function () {
   for (var x = 0; x < this.cols; x++) {
     this.buffer[this.cols * (this.rows - 1) + x] = 0x0f20;
   }
+
+  this.paint();
 };
 
 VirtKit.newline = function () {
@@ -162,6 +192,9 @@ VirtKit.newline = function () {
   {
     this.buffer[this.cols * this.cursor_row + this.cursor_col] =
       (this.cursor_color << 8) | 0x20;
+
+    this.paintAt(this.cursor_col, this.cursor_row);
+
     this.cursor_col++;
   }
 
@@ -182,8 +215,14 @@ VirtKit.put_char = function (c) {
   default:
     this.buffer[this.cursor_row * this.cols + this.cursor_col] =
       (this.cursor_color << 8) | (c & 0xff);
-    if (++this.cursor_col === this.cols) {
+
+    this.paintAt(this.cursor_col++, this.cursor_row);
+
+    if (this.cursor_col === this.cols) {
       this.newline();
+    }
+    else {
+      this.paintAt(this.cursor_col, this.cursor_row);
     }
   }
 };
@@ -214,14 +253,15 @@ window.addEventListener("load", function () {
     VirtKit.set_color(COLOR_RED, COLOR_WHITE);
     VirtKit.write_string("Kit Version 0.1\n");
 
-    VirtKit.set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
-    VirtKit.paint();
+    VirtKit.set_color(COLOR_WHITE, COLOR_RED);
 
+    VirtKit.write_string("\nHello, world!");
+
+/*
     setInterval(function() {
-      VirtKit.write_string("time = " + new Date() + "\n");
-      VirtKit.paint();
-    }, 1000);
-
+      VirtKit.write_string("a");
+    }, 200);
+*/
   });
 });
 
