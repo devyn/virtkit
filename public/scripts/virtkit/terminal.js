@@ -7,7 +7,7 @@ var CHAR_HEIGHT  = 16;
 
 var SHEET_WIDTH  = 32;
 var SHEET_HEIGHT = 8;
-var SHEET_MARGIN = 8;
+var SHEET_MARGIN = 0;
 
 var VGA_COLORS = [
   [0,   0,   0  ], // Color.BLACK
@@ -70,7 +70,7 @@ VirtKit.Terminal.Color = {
 VirtKit.Terminal.prototype.load_resources =
 function (callback) {
   var font_sheet = new Image();
-  font_sheet.src = "font_sheet.png";
+  font_sheet.src = url("/images/font_sheet.png");
 
   font_sheet.addEventListener("load", (function () {
     this.generate_sheets(font_sheet);

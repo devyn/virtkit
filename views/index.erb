@@ -3,8 +3,14 @@
   <head>
     <title>VirtKit</title>
 
-    <script src="lib/virtkit/terminal.js" type="text/javascript"></script>
-    <script src="lib/virtkit.js" type="text/javascript"></script>
+    <script>
+      url = function (path) {
+        return <%= url('/').to_json %> + path.replace(/^\//, '');
+      };
+    </script>
+
+    <script src="<%= url '/scripts/virtkit/terminal.js' %>"></script>
+    <script src="<%= url '/scripts/virtkit.js' %>"></script>
 
     <style>
       body {
