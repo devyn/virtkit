@@ -122,6 +122,8 @@ function (image) {
 
 VirtKit.Terminal.prototype.paint =
 function () {
+  if (this.disable_paint) return;
+
   this.g.fillStyle = "#000";
   this.g.fillRect(0, 0, this.cols * CHAR_WIDTH, this.rows * CHAR_HEIGHT);
 
@@ -134,6 +136,8 @@ function () {
 
 VirtKit.Terminal.prototype.paintAt =
 function (col, row) {
+  if (this.disable_paint) return;
+
   var ch = this.buffer[row * this.cols + col];
 
   var attribute = (ch & 0xff00) >> 8;
@@ -178,7 +182,14 @@ function () {
   this.cursor_col = 0;
   this.cursor_row = 0;
 
-  this.paint();
+  // Delay repaint (costly).
+  if (!this.disable_paint) {
+    this.disable_paint = true;
+    setTimeout((function () {
+      this.disable_paint = false;
+      this.paint();
+    }).bind(this), 0);
+  }
 };
 
 VirtKit.Terminal.prototype.scroll =
@@ -196,7 +207,14 @@ function () {
     this.buffer[this.cols * (this.rows - 1) + x] = 0x0f20;
   }
 
-  this.paint();
+  // Delay repaint (costly).
+  if (!this.disable_paint) {
+    this.disable_paint = true;
+    setTimeout((function () {
+      this.disable_paint = false;
+      this.paint();
+    }).bind(this), 0);
+  }
 };
 
 VirtKit.Terminal.prototype.newline =
@@ -231,6 +249,24 @@ function () {
 VirtKit.Terminal.prototype.put_char =
 function (c) {
   switch (c) {
+  case 0x8: // backspace
+    this.paintAt(this.cursor_col--, this.cursor_row);
+
+    if (this.cursor_col < 0) {
+      if (this.cursor_row > 0) {
+        this.cursor_row--;
+        this.cursor_col = this.cols - 1;
+      }
+      else {
+        this.cursor_col = 0;
+      }
+    }
+
+    this.buffer[this.cols * this.cursor_row + this.cursor_col] =
+      (this.cursor_color << 8) | 0x20;
+
+    this.paintAt(this.cursor_col, this.cursor_row);
+    break;
   case 0xA: // newline
     this.newline();
     break;
@@ -243,17 +279,15 @@ function (c) {
     this.paintAt(this.cursor_col, this.cursor_row);
     break;
   default:
+    if (this.cursor_col >= this.cols) {
+      this.newline();
+    }
+
     this.buffer[this.cursor_row * this.cols + this.cursor_col] =
       (this.cursor_color << 8) | (c & 0xff);
 
     this.paintAt(this.cursor_col++, this.cursor_row);
-
-    if (this.cursor_col === this.cols) {
-      this.newline();
-    }
-    else {
-      this.paintAt(this.cursor_col, this.cursor_row);
-    }
+    this.paintAt(this.cursor_col,   this.cursor_row);
   }
 };
 

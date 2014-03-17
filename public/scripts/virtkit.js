@@ -20,13 +20,13 @@ window.addEventListener("load", function () {
     terminal.write_string("\nOpening new session on " +
       (window.location.host || "localhost") + "...\n");
 
-    terminal.set_color(Color.DARK_GREY, Color.BLACK);
-    terminal.write_string("Note: not actually doing anything yet, so just\n" +
-      "type stuff once you see the login prompt.\n");
-    terminal.set_color(Color.LIGHT_GREY, Color.BLACK);
+    var socket = new WebSocket("ws://" +
+      (window.location.host || "localhost") + "/");
 
-    setTimeout(function () {
-      terminal.write_string("\nLogin: ");
+    socket.addEventListener("open", function () {
+      socket.addEventListener("message", function (e) {
+        terminal.write_string(e.data);
+      });
 
       window.addEventListener("keypress", function (e) {
         e.preventDefault();
@@ -35,14 +35,30 @@ window.addEventListener("load", function () {
 
         if (code >= 0x20 && code <= 0x7e) {
           // printable chars
-          terminal.put_char(code);
+          socket.send(String.fromCharCode(code));
         }
         else if (code === 0xd) {
           // 0xd = enter key, so put newline
-          terminal.put_char(0xa);
+          socket.send("\n");
         }
       });
-    }, 1000);
+
+      window.addEventListener("keydown", function (e) {
+        var code = e.keyCode || e.which;
+
+        if (code === 0x8) {
+          e.preventDefault();
+
+          // 0x8 = backspace
+          socket.send("\x08");
+        }
+      });
+    });
+
+    socket.addEventListener("close", function () {
+      terminal.set_color(Color.DARK_GREY, Color.BLACK);
+      terminal.write_string("\nConnection closed.\n");
+    });
 
   });
 
